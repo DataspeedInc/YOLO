@@ -153,8 +153,9 @@ class YoloDataset(Dataset):
 
     def get_data(self, idx):
         img_path, bboxes = self.img_paths[idx], self.bboxes[idx]
+        abs_img_path = Path('/home/skill/gs_ui_ws/src/YOLO/') / img_path
         valid_mask = bboxes[:, 0] != -1
-        with Image.open(img_path) as img:
+        with Image.open(abs_img_path) as img:
             img = img.convert("RGB")
         return img, torch.from_numpy(bboxes[valid_mask]), img_path
 

@@ -146,8 +146,8 @@ class BoxMatcher:
         self.class_num = class_num
         self.vec2box = vec2box
         self.reg_max = reg_max
-        for attr_name in cfg:
-            setattr(self, attr_name, cfg[attr_name])
+        for attr_name in cfg.__getattribute__("__dict__").keys():
+            setattr(self, attr_name, cfg.__getattribute__('__dict__')[attr_name])
 
     def get_valid_matrix(self, target_bbox: Tensor):
         """

@@ -2,11 +2,11 @@ hydra:
   run:
     dir: runs
 
-name: v9-s-1
+name: flower-v9-c
 
 defaults:
   - _self_
   - task: inference
   - dataset: dev
-  - model: v9-s
+  - model: v9-c
   - general

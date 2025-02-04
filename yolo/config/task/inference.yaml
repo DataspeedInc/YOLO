@@ -6,7 +6,7 @@ data:
   image_size: ${image_size}
   data_augment: {}
 nms:
-  min_confidence: 0.5
-  min_iou: 0.5
+  min_confidence: 0.3
+  min_iou: 0.3
   max_bbox: 300
 save_predict: True

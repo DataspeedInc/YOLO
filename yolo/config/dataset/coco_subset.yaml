@@ -1,0 +1,23 @@
+path: data/coco_subset
+train: train2017
+validation: val2017
+
+class_num: 10
+class_list: ['Person', 'Bicycle', 'Car', 'Motorcycle', 'Airplane', 'Bus', 'Train', 'Truck', 'Boat', 'Traffic light']
+
+auto_download:
+  images:
+    base_url: http://images.cocodataset.org/zips/
+    train2017:
+      file_name: train2017
+      file_num: 118287
+    val2017:
+      file_name: val2017
+      file_num: 5000
+    test2017:
+      file_name: test2017
+      file_num: 40670
+  annotations:
+    base_url: http://images.cocodataset.org/annotations/
+    annotations:
+      file_name: annotations_trainval2017

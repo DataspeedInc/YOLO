@@ -315,7 +315,7 @@ def validate_log_directory(cfg: Config, exp_name: str) -> Path:
             save_path = base_path / exp_name
             index += 1
         if index > 1:
-            logger.opt(colors=True).warning(
+            logger.warning(
                 f"🔀 Experiment directory exists! Changed <red>{old_exp_name}</> to <green>{exp_name}</>"
             )
 

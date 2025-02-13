@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 import sys
+import os
 from pathlib import Path
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import String, Empty
 import gs_ui_msgs
 from gs_ui_msgs.msg import BaseConfig, StartTraining
 import threading
@@ -44,47 +45,117 @@ class YoloTrainingNode(Node):
         self.ema_cfg = None
         self.epochs = 0
         self.cfg_path = project_root / 'yolo' / 'config'
+        self.save_path = str(os.environ['HOME']) + '/gs_ui_ws/weights/pytorch/yolov9'
         
         
         self.get_logger().info("Starting YOLO training node...")
         self.start_train_sub = self.create_subscription(StartTraining, 'yolov9/start_training', self.run_training, 1)
         self.metrics_pub = self.create_publisher(String, "yolov9/metrics", 10)
+        self.train_end_pub = self.create_publisher(Empty, "yolov9/train_end", 1)
 
     def run_training(self, msg):
         # Setup config
         base_cfg = BaseConfig()
         
         model = OmegaConf.load(self.cfg_path / 'model' /  'v9-s.yaml')
-        dataset = OmegaConf.load(self.cfg_path / 'dataset' / 'dev.yaml')
+        dataset = OmegaConf.load(self.cfg_path / 'dataset' / 'flower.yaml')
         # model_dict = OmegaConf.to_container(model, resolve=True)
         # self.model_cfg = ModelConfig(name = model_dict.get('name', {}), anchor=model_dict.get('anchor', {}), model=model_dict.get('model', {}))
         base_cfg = msg
-        val_data_cfg = DataConfig(batch_size=1,image_size=[640, 640],cpu_num=16,shuffle=True,pin_memory=True,source='dev',data_augment={},dynamic_shape=False)
-        self.nms_cfg = NMSConfig(min_confidence=0.25, min_iou=0.65, max_bbox=300)
-        self.validation_cfg = ValidationConfig(task='validation', nms=self.nms_cfg, data=val_data_cfg)
-        ema_config = EMAConfig(enable=True, decay=0.995)
-        scheduler_config = SchedulerConfig(type='LinearLR', warmup={'epochs': 3}, args={'total_iters': 2000, 'start_factor': 1, 'end_factor': 0.01})
-        matcher_config = MatcherConfig(iou='CIoU', topk=10, factor={'iou': 6.0, 'cls': 0.5})
-        self.loss_cfg = LossConfig(objective={'BoxLoss': 7.5, 'DFLoss': 1.5, 'BCELoss': 0.5},aux=0.25,matcher=matcher_config)
-        self.optimizer_cfg = OptimizerConfig(type='SGD', args={'lr': 0.001, 'weight_decay': 0.0005, 'momentum': 0.937, 'nesterov': True})
-        self.dataset_cfg = DatasetConfig(path='data/flow', class_num=1, class_list=['flowers'], auto_download=None)
-        self.data_cfg = DataConfig(batch_size=1,image_size=[640, 640],cpu_num=16,shuffle=True,pin_memory=True,data_augment={},dynamic_shape=False,source='dev')
-        self.train_cfg = TrainConfig(task='train',epoch=2000,data=self.data_cfg,optimizer=self.optimizer_cfg,loss=self.loss_cfg,scheduler=scheduler_config,ema=ema_config,validation=self.validation_cfg)
-        self.cfg = Config(name='flower-v9-s', task=self.train_cfg, dataset=dataset, model=model, device='cuda', image_size=[640, 640], out_path='runs', exist_ok=True, lucky_number=10, use_wandb=False, use_tensorboard=False, weight=True, cpu_num=16)
+        val_data_cfg = DataConfig(
+            batch_size=2,
+            image_size=[640, 640],
+            cpu_num=16,
+            shuffle=True,
+            pin_memory=True,
+            source='dev',
+            data_augment={},
+            dynamic_shape=False)
+        self.nms_cfg = NMSConfig(
+            min_confidence=0.25,
+            min_iou=0.65,
+            max_bbox=300)
+        self.validation_cfg = ValidationConfig(
+            task='validation',
+            nms=self.nms_cfg,
+            data=val_data_cfg)
+        ema_config = EMAConfig(
+            enable=True,
+            decay=0.995)
+        scheduler_config = SchedulerConfig(
+            type='LinearLR',
+            warmup={'epochs': 3},
+            args={'total_iters': 2000, 'start_factor': 1, 'end_factor': 0.01})
+        matcher_config = MatcherConfig(
+            iou='CIoU',
+            topk=10,
+            factor={'iou': 6.0, 'cls': 0.5})
+        self.loss_cfg = LossConfig(
+            objective={'BoxLoss': 7.5, 'DFLoss': 1.5, 'BCELoss': 0.5},
+            aux=0.25,
+            matcher=matcher_config)
+        self.optimizer_cfg = OptimizerConfig(
+            type='SGD',
+            args={'lr': 0.001, 'weight_decay': 0.0005, 'momentum': 0.937, 'nesterov': True})
+        self.dataset_cfg = DatasetConfig(
+            path='data/flow',
+            class_num=1,
+            class_list=['flowers'],
+            auto_download=None)
+        self.data_cfg = DataConfig(
+            batch_size=2,
+            image_size=[640, 640],
+            cpu_num=16,
+            shuffle=True,
+            pin_memory=True,
+            data_augment={},
+            dynamic_shape=False,
+            source='dev')
+        self.train_cfg = TrainConfig(
+            task='train',
+            epoch=2000,
+            data=self.data_cfg,
+            optimizer=self.optimizer_cfg,
+            loss=self.loss_cfg,
+            scheduler=scheduler_config,
+            ema=ema_config,
+            validation=self.validation_cfg)
+        self.cfg = Config(
+            name='flower_v9-s',
+            task=self.train_cfg,
+            dataset=dataset,
+            model=model,
+            device='cuda',
+            image_size=[640, 640],
+            out_path='runs',
+            exist_ok=False,
+            lucky_number=10,
+            use_wandb=False,
+            use_tensorboard=False,
+            weight='/home/skill/gs_ui_ws/weights/v9-s.pt', cpu_num=16)
         
         
         callbacks, loggers, save_path = setup(self.cfg)
+        save_path =self.save_path + '/' + self.cfg.name
         csv_logger = CSVLogger(save_dir=save_path)
         loggers.append(csv_logger)
         
-        early_stop = EarlyStopping(monitor="Loss/BoxLoss_epoch", mode="min", patience=50)
+        early_stop = EarlyStopping(monitor="Loss/TotalLoss_epoch", mode="min", patience=50)
         callbacks.append(early_stop)
-        model_checkpoint = ModelCheckpoint(dirpath=save_path, filename="best", monitor="PyCOCO/AP @ .5:.95", mode="max", save_last=True, auto_insert_metric_name=True)
-        callbacks.append(model_checkpoint)
+        model_checkpoint_1 = ModelCheckpoint(dirpath=save_path, filename="min_loss", monitor="Loss/TotalLoss_epoch", mode="min", save_last=True, auto_insert_metric_name=True)
+        callbacks.append(model_checkpoint_1)
+        model_checkpoint_2 = ModelCheckpoint(dirpath=save_path, filename="max_ap", monitor="PyCOCO/AP @ .5", mode="max", auto_insert_metric_name=True)
+        callbacks.append(model_checkpoint_2)
         # ros_metrics_publisher = ROS2MetricsPublisher()
         # callbacks.append(ros_metrics_publisher)
-        lambda_cb = LambdaCallback(on_train_epoch_end=lambda trainer, pl_module: self.pub_metrics(trainer, pl_module))
-        callbacks.append(lambda_cb)
+        train_epoch_end_cb = LambdaCallback(on_train_epoch_end=lambda trainer, pl_module: self.pub_train_metrics(trainer, pl_module))
+        callbacks.append(train_epoch_end_cb)
+        # val_epoch_end_cb = LambdaCallback(on_validation_epoch_end=lambda trainer, pl_module: self.pub_val_metrics(trainer, pl_module))
+        # callbacks.append(val_epoch_end_cb)
+        train_end_cb = LambdaCallback(on_train_end=lambda trainer, pl_module: self.pub_train_end(trainer, pl_module))
+        callbacks.append(train_end_cb)
+        exception_cb = LambdaCallback(on_exception=lambda trainer, pl_module, exception: self.handle_exception(trainer, pl_module, exception))
+        callbacks.append(exception_cb)
         
         
         self.trainer = Trainer(
@@ -111,12 +182,22 @@ class YoloTrainingNode(Node):
             model = InferenceModel(self.cfg)
             self.trainer.predict(model)
             
-    def pub_metrics(self, trainer, pl_module):
+    def pub_train_metrics(self, trainer, pl_module):
         metrics_dict = trainer.logged_metrics
         metrics_dict['epoch'] = trainer.current_epoch
         metrics_string = ", ".join([f"{key}: {value}" for key, value in metrics_dict.items()])
-        # self.get_logger().info(f"Epoch {trainer.current_epoch}: {metrics_string}")
+        self.get_logger().info(f"Trainer Epoch: {trainer.current_epoch}: {metrics_string}")
         self.metrics_pub.publish(String(data=metrics_string))
+        
+    def pub_train_end(self, trainer, pl_module):
+        self.get_logger().info(f"Training finished")
+        self.train_end_pub.publish(Empty())
+        
+    def handle_exception(self, trainer, pl_module, exception):
+        self.get_logger().info(f"Training exception: {exception}")
+        self.train_end_pub.publish(Empty())
+    
+            
 
 def spin_node(executor, node):
     rclpy.spin(node)

@@ -98,6 +98,13 @@ class TrainModel(ValidateModel):
             batch_size=batch_size,
             rank_zero_only=True,
         )
+        self.log_dict(
+            {"Loss/TotalLoss": loss.detach().item()},
+            prog_bar=True,
+            on_epoch=True,
+            batch_size=batch_size,
+            rank_zero_only=True
+        )
         self.log_dict(lr_dict, prog_bar=False, logger=True, on_epoch=False, rank_zero_only=True)
         return loss * batch_size
 

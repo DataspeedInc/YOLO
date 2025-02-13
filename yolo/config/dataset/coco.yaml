@@ -1,4 +1,4 @@
-path: data/coco
+path: /home/skill/gs_ui_ws/src/YOLO/data/coco
 train: train2017
 validation: val2017
 
